@@ -20,7 +20,7 @@ export function Header() {
   return <>
     <header className="site-header">
       <button className="menu-trigger" onClick={() => setMenuOpen(true)} aria-label="메뉴 열기">≡</button>
-      <Brand />
+      <Brand priority />
       <nav className="main-nav" aria-label="주요 메뉴">
         <NavLink to="/shop">SHOP <em>{t('nav.shop')}</em></NavLink>
         <NavLink to="/find">THE FIND <em>{t('nav.find')}</em></NavLink>

@@ -1,0 +1,13 @@
+{
+  "name": "PHILIA",
+  "short_name": "PHILIA",
+  "description": "Clothes that stay, the way love stays.",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#f2f0ec",
+  "theme_color": "#f2f0ec",
+  "icons": [
+    { "src": "/logos/philia-dark-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any maskable" },
+    { "src": "/logos/philia-dark-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any maskable" }
+  ]
+}
