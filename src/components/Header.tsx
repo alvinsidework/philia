@@ -59,7 +59,7 @@ export function Header() {
           <Link to="/mending" onClick={() => setMenuOpen(false)}><span>03</span> Mending <em>{t('nav.mending')}</em></Link>
           <Link to="/account" onClick={() => setMenuOpen(false)}><span>04</span> Account <em>{t('nav.account')}</em></Link>
         </nav>
-        <p>ΦΙΛΊΑ · 따뜻한 사랑처럼,<br />옷장에 오래 머무는 옷.</p>
+        <p>ΦΙΛΊΑ · 따뜻한 사랑처럼,<br />오래 머무르는 옷.</p>
       </motion.div> : null}
     </AnimatePresence>
   </>
