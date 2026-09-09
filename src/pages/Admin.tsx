@@ -7,11 +7,12 @@ import type { CostProfile, Product, Variant } from '../types'
 import { Brand } from '../components/Brand'
 import { supabase } from '../lib/supabase'
 import { setLanguage } from '../i18n'
+import { UserManagement } from '../components/admin/UserManagement'
 
-type AdminView = 'dashboard' | 'products' | 'inventory' | 'finance' | 'orders' | 'payments' | 'editorial' | 'content' | 'settings'
+type AdminView = 'dashboard' | 'products' | 'inventory' | 'finance' | 'orders' | 'payments' | 'editorial' | 'content' | 'users' | 'settings'
 
 const nav: [AdminView, string, string][] = [
-  ['dashboard', 'overview', '01'], ['products', 'products', '02'], ['inventory', 'inventory', '03'], ['finance', 'finance', '04'], ['orders', 'orders', '05'], ['payments', 'payments', '06'], ['editorial', 'editorial', '07'], ['content', 'content', '08'], ['settings', 'settings', '09'],
+  ['dashboard', 'overview', '01'], ['products', 'products', '02'], ['inventory', 'inventory', '03'], ['finance', 'finance', '04'], ['orders', 'orders', '05'], ['payments', 'payments', '06'], ['editorial', 'editorial', '07'], ['content', 'content', '08'], ['users', 'users', '09'], ['settings', 'settings', '10'],
 ]
 
 const soldOf = (product: Product) => product.variants.reduce((sum, v) => sum + v.sold, 0)
@@ -46,6 +47,7 @@ export function Admin() {
       {view === 'payments' ? <PaymentsAdmin /> : null}
       {view === 'editorial' ? <EditorialAdmin /> : null}
       {view === 'content' ? <Content /> : null}
+      {view === 'users' ? <UserManagement /> : null}
       {view === 'settings' ? <Settings onReset={resetDemo} /> : null}
     </main>
     {editor ? <ProductEditor product={editor} onClose={() => setEditor(null)} onSave={product => { updateProduct(product); setEditor(null) }} /> : null}

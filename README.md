@@ -23,11 +23,7 @@ supabase link --project-ref bmsgqkyunhockhxgpfsv
 supabase db push
 ```
 
-`.env.local`에 Project URL과 anon key를 입력합니다. 첫 회원 가입 뒤 SQL editor에서 소유자 역할을 지정합니다.
-
-```sql
-update public.profiles set role = 'admin' where email = 'owner@example.com';
-```
+`.env.local`에 Project URL과 anon key를 입력합니다. 최초 관리자는 `alvinhan1707@gmail.com`으로 예약되어 있습니다. 이미 가입한 경우 즉시 admin으로 승격되며, 아직 가입 전이면 해당 이메일로 가입한 순간 역할이 적용됩니다. 이후 관리자는 `/admin`의 `사용자 관리`에서 가입 회원의 역할을 바꾸거나 이메일을 미리 등록합니다. 역할 변경은 admin 전용 데이터베이스 함수에서 검증되며 자기 자신과 마지막 관리자는 강등할 수 없습니다.
 
 마이그레이션은 다음을 포함합니다.
 
