@@ -1,0 +1,5 @@
+-- After the first user signs up, promote the owner from the SQL editor:
+-- update public.profiles set role = 'admin' where email = 'owner@example.com';
+--
+-- The Vite demo catalogue is intentionally local-first. Use the admin product editor
+-- to seed production data after setting VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY.

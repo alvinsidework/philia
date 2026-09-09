@@ -1,0 +1,5 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 56">
+  <rect width="48" height="56" fill="#f2f0ec"/>
+  <ellipse cx="24" cy="28" rx="17" ry="23" fill="none" stroke="#1c1b1a" stroke-width="1.5"/>
+  <text x="24" y="35" text-anchor="middle" font-family="Georgia,serif" font-size="22" fill="#1c1b1a">φ</text>
+</svg>
