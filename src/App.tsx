@@ -14,6 +14,7 @@ const Admin = lazy(() => import('./pages/Admin').then(module => ({ default: modu
 const AdminGate = lazy(() => import('./components/AdminGate').then(module => ({ default: module.AdminGate })))
 const Community = lazy(() => import('./pages/Community').then(module => ({ default: module.Community })))
 const Find = lazy(() => import('./pages/Find').then(module => ({ default: module.Find })))
+const About = lazy(() => import('./pages/About').then(module => ({ default: module.About })))
 const Mending = lazy(() => import('./pages/Mending').then(module => ({ default: module.Mending })))
 const Checkout = lazy(() => import('./pages/Checkout').then(module => ({ default: module.Checkout })))
 
@@ -24,7 +25,7 @@ function ScrollReset() {
 }
 
 function StoreLayout() {
-  return <><Header /><Routes><Route path="/" element={<Home />} /><Route path="/shop" element={<Shop />} /><Route path="/shop/:slug" element={<ProductDetail />} /><Route path="/find" element={<Find />} /><Route path="/mending" element={<Mending />} /><Route path="/checkout" element={<Checkout />} /><Route path="/account" element={<Account />} /><Route path="/community" element={<Community />} /></Routes><Footer /><CartDrawer /></>
+  return <><Header /><Routes><Route path="/" element={<Home />} /><Route path="/shop" element={<Shop />} /><Route path="/shop/:slug" element={<ProductDetail />} /><Route path="/the-edit" element={<Find />} /><Route path="/find" element={<Find />} /><Route path="/about" element={<About />} /><Route path="/mending" element={<Mending />} /><Route path="/checkout" element={<Checkout />} /><Route path="/account" element={<Account />} /><Route path="/community" element={<Community />} /></Routes><Footer /><CartDrawer /></>
 }
 
 export default function App() {

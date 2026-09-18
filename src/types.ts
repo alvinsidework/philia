@@ -2,6 +2,7 @@ export type Category = 'OUTER' | 'KNIT' | 'BOTTOM' | 'BAG'
 
 export type Variant = {
   id: string
+  variantSku: string
   color: string
   colorHex: string
   size: string
@@ -37,7 +38,8 @@ export type Product = {
   shortDescription: string
   material: string
   image: string
-  status: '판매중' | '초안' | '품절'
+  images: string[]
+  status: 'active' | 'draft' | 'sold_out' | 'archived'
   featured: boolean
   signatures: string[]
   variants: Variant[]
