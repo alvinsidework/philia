@@ -1,6 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { motion } from 'motion/react'
 import { Link, Navigate, useParams } from 'react-router-dom'
 import { formatWon } from '../data'
 import { useAppStore } from '../store/AppStore'
@@ -29,7 +28,7 @@ export function ProductDetail() {
   return <main className="piece-page">
     <div className="breadcrumbs">COLLECTION 1 <i>/</i> SHOP <i>/</i> PIECE {String(product.piece).padStart(2, '0')} · {product.name.toUpperCase()}</div>
     <section className="piece-main">
-      <motion.div className="piece-gallery" initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: .7 }}>{(product.images.length ? product.images : [product.image]).map((image, index) => <img src={image} alt={index === 0 ? product.nameKo : `${product.nameKo} detail ${index}`} key={`${image}-${index}`} />)}</motion.div>
+      <div className="piece-gallery">{(product.images.length ? product.images : [product.image]).map((image, index) => <img src={image} alt={index === 0 ? product.nameKo : `${product.nameKo} detail ${index}`} key={`${image}-${index}`} />)}</div>
       <div className="piece-info">
         <div className="piece-label"><span>PIECE {String(product.piece).padStart(2, '0')} · {product.layer}</span><span>UNISEX · {new Set(product.variants.map(v => v.size)).size > 1 ? '1—2' : 'ONE'}</span></div>
         <h1>{english ? product.name : product.nameKo}</h1><p className="piece-ko">{english ? product.nameKo : product.name} — {color}</p>
