@@ -9,6 +9,7 @@ import { Home } from './pages/Home'
 import { Shop } from './pages/Shop'
 import { ProductDetail } from './pages/ProductDetail'
 import { Landing } from './pages/Landing'
+import { TossPaymentFail, TossPaymentSuccess } from './pages/TossPaymentResult'
 
 const Account = lazy(() => import('./pages/Account').then(module => ({ default: module.Account })))
 const Admin = lazy(() => import('./pages/Admin').then(module => ({ default: module.Admin })))
@@ -26,7 +27,7 @@ function ScrollReset() {
 }
 
 function StoreLayout() {
-  return <><Header /><Routes><Route path="/home" element={<Home />} /><Route path="/shop" element={<Shop />} /><Route path="/shop/:slug" element={<ProductDetail />} /><Route path="/the-edit" element={<Find />} /><Route path="/find" element={<Find />} /><Route path="/about" element={<About />} /><Route path="/mending" element={<Mending />} /><Route path="/checkout" element={<Checkout />} /><Route path="/account" element={<Account />} /><Route path="/community" element={<Community />} /></Routes><Footer /><CartDrawer /></>
+  return <><Header /><Routes><Route path="/home" element={<Home />} /><Route path="/shop" element={<Shop />} /><Route path="/shop/:slug" element={<ProductDetail />} /><Route path="/the-edit" element={<Find />} /><Route path="/find" element={<Find />} /><Route path="/about" element={<About />} /><Route path="/mending" element={<Mending />} /><Route path="/checkout" element={<Checkout />} /><Route path="/checkout/toss/success" element={<TossPaymentSuccess />} /><Route path="/checkout/toss/fail" element={<TossPaymentFail />} /><Route path="/account" element={<Account />} /><Route path="/community" element={<Community />} /></Routes><Footer /><CartDrawer /></>
 }
 
 export default function App() {

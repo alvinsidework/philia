@@ -664,29 +664,60 @@ function Finance({
   );
 }
 
+type AdminOrderRow = {
+  id: string;
+  orderNo: string;
+  customer: string;
+  amount: number;
+  status: string;
+  createdAt: string;
+  method: string;
+  items: string[];
+};
+
 function Orders() {
-  const [orders, setOrders] = useState<TransferOrder[]>([]);
+  const [orders, setOrders] = useState<AdminOrderRow[]>([]);
   const [message, setMessage] = useState("");
   useEffect(() => {
     if (!supabase) return;
-    void supabase
-      .from("bank_transfer_orders")
-      .select("*")
-      .order("created_at", { ascending: false })
-      .then(({ data, error }) => {
-        setOrders((data ?? []) as TransferOrder[]);
-        setMessage(error?.message ?? "");
-      });
+    void Promise.all([
+      supabase.from("orders").select("id,order_no,customer_name,total,status,payment_provider,payment_method,created_at,order_items(product_name,option_label,quantity)").order("created_at", { ascending: false }),
+      supabase.from("bank_transfer_orders").select("*").order("created_at", { ascending: false }),
+    ]).then(([commerce, bank]) => {
+      const commerceRows = (commerce.data ?? []).map((order) => ({
+        id: order.id,
+        orderNo: order.order_no,
+        customer: order.customer_name,
+        amount: order.total,
+        status: order.status,
+        createdAt: order.created_at,
+        method: order.payment_provider === "toss" ? `TOSS ${order.payment_method ?? "TEST"}` : "ONLINE",
+        items: (order.order_items ?? []).map((item) => `${item.product_name} / ${item.option_label} × ${item.quantity}`),
+      }));
+      const bankRows = ((bank.data ?? []) as TransferOrder[]).map((order) => ({
+        id: order.id,
+        orderNo: order.order_no,
+        customer: order.depositor_name,
+        amount: order.amount,
+        status: order.status,
+        createdAt: order.created_at,
+        method: "BANK TRANSFER",
+        items: order.items.map((item) => `${item.name} / ${item.option} × ${item.quantity}`),
+      }));
+      setOrders([...commerceRows, ...bankRows].sort((a, b) => b.createdAt.localeCompare(a.createdAt)));
+      setMessage(commerce.error?.message ?? bank.error?.message ?? "");
+    });
   }, []);
   const exportCsv = () => {
     const rows = [
-      ["ORDER", "DEPOSITOR", "AMOUNT", "STATUS", "CREATED"],
+      ["ORDER", "CUSTOMER", "METHOD", "AMOUNT", "STATUS", "CREATED"],
       ...orders.map((order) => [
-        order.order_no,
-        order.depositor_name,
+        order.orderNo,
+        order.customer,
+        order.method,
         String(order.amount),
         order.status,
-        order.created_at,
+        order.createdAt,
       ]),
     ];
     const blob = new Blob(
@@ -729,15 +760,10 @@ function Orders() {
         {orders.length ? (
           orders.map((order) => (
             <div className="table-row" key={order.id}>
-              <span>{order.order_no}</span>
-              <span>{order.depositor_name}</span>
+              <span>{order.orderNo}</span>
+              <span className="order-customer">{order.customer}<small>{order.method}</small></span>
               <span>
-                {order.items
-                  .map(
-                    (item) =>
-                      `${item.name} / ${item.option} × ${item.quantity}`,
-                  )
-                  .join(", ")}
+                {order.items.join(", ")}
               </span>
               <span>{formatWon(order.amount)}</span>
               <span className={`status ${order.status}`}>{order.status}</span>
