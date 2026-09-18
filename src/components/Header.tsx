@@ -8,7 +8,7 @@ import { setLanguage } from '../i18n'
 import { Brand } from './Brand'
 import { SearchOverlay } from './SearchOverlay'
 
-export function Header() {
+export function Header({ variant = 'default' }: { variant?: 'default' | 'landing' }) {
   const [menuOpen, setMenuOpen] = useState(false)
   const [utilityOpen, setUtilityOpen] = useState(false)
   const [searchOpen, setSearchOpen] = useState(false)
@@ -21,9 +21,9 @@ export function Header() {
   const closeSearch = useCallback(() => setSearchOpen(false), [])
   const closeUtility = () => setUtilityOpen(false)
   return <>
-    <header className="site-header">
+    <header className={`site-header ${variant === 'landing' ? 'landing-header' : ''}`}>
       <button className="menu-trigger" onClick={() => setMenuOpen(true)} aria-label="메뉴 열기"><i /><i /></button>
-      <Brand priority />
+      <Brand />
       <nav className="main-nav" aria-label="주요 메뉴">
         <NavLink to="/shop">Shop</NavLink>
         <NavLink to="/the-edit">The Edit</NavLink>

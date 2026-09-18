@@ -8,6 +8,7 @@ import { CartDrawer } from './components/CartDrawer'
 import { Home } from './pages/Home'
 import { Shop } from './pages/Shop'
 import { ProductDetail } from './pages/ProductDetail'
+import { Landing } from './pages/Landing'
 
 const Account = lazy(() => import('./pages/Account').then(module => ({ default: module.Account })))
 const Admin = lazy(() => import('./pages/Admin').then(module => ({ default: module.Admin })))
@@ -25,9 +26,9 @@ function ScrollReset() {
 }
 
 function StoreLayout() {
-  return <><Header /><Routes><Route path="/" element={<Home />} /><Route path="/shop" element={<Shop />} /><Route path="/shop/:slug" element={<ProductDetail />} /><Route path="/the-edit" element={<Find />} /><Route path="/find" element={<Find />} /><Route path="/about" element={<About />} /><Route path="/mending" element={<Mending />} /><Route path="/checkout" element={<Checkout />} /><Route path="/account" element={<Account />} /><Route path="/community" element={<Community />} /></Routes><Footer /><CartDrawer /></>
+  return <><Header /><Routes><Route path="/home" element={<Home />} /><Route path="/shop" element={<Shop />} /><Route path="/shop/:slug" element={<ProductDetail />} /><Route path="/the-edit" element={<Find />} /><Route path="/find" element={<Find />} /><Route path="/about" element={<About />} /><Route path="/mending" element={<Mending />} /><Route path="/checkout" element={<Checkout />} /><Route path="/account" element={<Account />} /><Route path="/community" element={<Community />} /></Routes><Footer /><CartDrawer /></>
 }
 
 export default function App() {
-  return <BrowserRouter><AuthProvider><AppStoreProvider><ScrollReset /><Suspense fallback={<main className="route-loading">φ</main>}><Routes><Route path="/admin" element={<AdminGate><Admin /></AdminGate>} /><Route path="/*" element={<StoreLayout />} /></Routes></Suspense></AppStoreProvider></AuthProvider></BrowserRouter>
+  return <BrowserRouter><AuthProvider><AppStoreProvider><ScrollReset /><Suspense fallback={<main className="route-loading">φ</main>}><Routes><Route path="/" element={<Landing />} /><Route path="/admin" element={<AdminGate><Admin /></AdminGate>} /><Route path="/*" element={<StoreLayout />} /></Routes></Suspense></AppStoreProvider></AuthProvider></BrowserRouter>
 }

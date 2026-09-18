@@ -7,8 +7,8 @@ export function Seal({ priority = false }: { light?: boolean; priority?: boolean
   </picture>
 }
 
-export function Brand({ light = false, priority = false }: { light?: boolean; priority?: boolean }) {
-  return <Link to="/" className={`brand ${light ? 'brand-light' : ''}`} aria-label="PHILIA home">{light ? null : <Seal priority={priority} />}<span>PHILIA</span></Link>
+export function Brand({ light = false }: { light?: boolean }) {
+  return <Link to="/" className={`brand ${light ? 'brand-light' : ''}`} aria-label="PHILIA home"><span>PHILIA</span></Link>
 }
 
 export function ProfileMark() {
