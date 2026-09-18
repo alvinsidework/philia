@@ -4,7 +4,7 @@ import { Link } from "react-router-dom";
 import { calculateFinance, formatWon } from "../data";
 import { useAppStore } from "../store/AppStore";
 import type { CostProfile, Product, Variant } from "../types";
-import { Brand } from "../components/Brand";
+import { Brand, ProfileMark } from "../components/Brand";
 import { supabase } from "../lib/supabase";
 import { setLanguage } from "../i18n";
 import { UserManagement } from "../components/admin/UserManagement";
@@ -117,7 +117,7 @@ export function Admin() {
             >
               {i18n.language === "en" ? "KO" : "EN"}
             </button>
-            <span>PH</span>
+            <ProfileMark />
             <div>
               <b>PHILIA ADMIN</b>
               <small>OWNER</small>

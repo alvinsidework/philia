@@ -37,8 +37,9 @@ const resources = {
 }
 
 const stored = localStorage.getItem('philia-language')
-void i18n.use(initReactI18next).init({ resources, lng: stored === 'en' ? 'en' : 'ko', fallbackLng: 'ko', interpolation: { escapeValue: false } })
-document.documentElement.lang = stored === 'en' ? 'en' : 'ko'
+const initialLanguage = stored === 'ko' ? 'ko' : 'en'
+void i18n.use(initReactI18next).init({ resources, lng: initialLanguage, fallbackLng: 'en', interpolation: { escapeValue: false } })
+document.documentElement.lang = initialLanguage
 
 export const setLanguage = async (language: 'ko' | 'en') => { localStorage.setItem('philia-language', language); document.documentElement.lang = language; await i18n.changeLanguage(language) }
 export default i18n
