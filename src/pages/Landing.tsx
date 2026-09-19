@@ -1,4 +1,6 @@
 import { motion } from 'motion/react'
+import { useTranslation } from 'react-i18next'
+import { Link } from 'react-router-dom'
 import { CartDrawer } from '../components/CartDrawer'
 import { Header } from '../components/Header'
 import { useSitePage, type SitePage } from '../hooks/useSitePage'
@@ -20,6 +22,7 @@ const fallback: SitePage = {
 
 export function Landing() {
   const page = useSitePage('landing', fallback)
+  const { t } = useTranslation()
 
   return <div className="landing-page">
     <Header variant="landing" />
@@ -33,6 +36,9 @@ export function Landing() {
         animate={{ opacity: 1, scale: 1 }}
         transition={{ duration: 1.1, ease: [0.22, 1, 0.36, 1] }}
       />
+      <motion.div className="landing-cta" initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: .45, duration: .65 }}>
+        <Link to="/shop">{t('nav.shop')} <span aria-hidden="true">→</span></Link>
+      </motion.div>
     </main>
     <CartDrawer />
   </div>

@@ -668,11 +668,24 @@ type AdminOrderRow = {
   id: string;
   orderNo: string;
   customer: string;
+  email: string;
   amount: number;
+  subtotal: number;
+  shippingFee: number;
   status: string;
   createdAt: string;
   method: string;
   items: string[];
+  shipping: ShippingAddress | null;
+};
+
+type ShippingAddress = {
+  recipient_name?: string;
+  phone?: string;
+  postal_code?: string;
+  address_line1?: string;
+  address_line2?: string;
+  delivery_message?: string;
 };
 
 function Orders() {
@@ -681,28 +694,36 @@ function Orders() {
   useEffect(() => {
     if (!supabase) return;
     void Promise.all([
-      supabase.from("orders").select("id,order_no,customer_name,total,status,payment_provider,payment_method,created_at,order_items(product_name,option_label,quantity)").order("created_at", { ascending: false }),
+      supabase.from("orders").select("id,order_no,email,customer_name,subtotal,shipping_fee,total,shipping_address,status,payment_provider,payment_method,created_at,order_items(product_name,option_label,quantity)").order("created_at", { ascending: false }),
       supabase.from("bank_transfer_orders").select("*").order("created_at", { ascending: false }),
     ]).then(([commerce, bank]) => {
       const commerceRows = (commerce.data ?? []).map((order) => ({
         id: order.id,
         orderNo: order.order_no,
         customer: order.customer_name,
+        email: order.email,
         amount: order.total,
+        subtotal: order.subtotal,
+        shippingFee: order.shipping_fee,
         status: order.status,
         createdAt: order.created_at,
         method: order.payment_provider === "toss" ? `TOSS ${order.payment_method ?? "TEST"}` : "ONLINE",
         items: (order.order_items ?? []).map((item) => `${item.product_name} / ${item.option_label} × ${item.quantity}`),
+        shipping: order.shipping_address as ShippingAddress | null,
       }));
       const bankRows = ((bank.data ?? []) as TransferOrder[]).map((order) => ({
         id: order.id,
         orderNo: order.order_no,
         customer: order.depositor_name,
+        email: "",
         amount: order.amount,
+        subtotal: order.subtotal,
+        shippingFee: order.shipping_fee,
         status: order.status,
         createdAt: order.created_at,
         method: "BANK TRANSFER",
         items: order.items.map((item) => `${item.name} / ${item.option} × ${item.quantity}`),
+        shipping: order.shipping_address,
       }));
       setOrders([...commerceRows, ...bankRows].sort((a, b) => b.createdAt.localeCompare(a.createdAt)));
       setMessage(commerce.error?.message ?? bank.error?.message ?? "");
@@ -710,10 +731,19 @@ function Orders() {
   }, []);
   const exportCsv = () => {
     const rows = [
-      ["ORDER", "CUSTOMER", "METHOD", "AMOUNT", "STATUS", "CREATED"],
+      ["ORDER", "CUSTOMER", "EMAIL", "RECIPIENT", "PHONE", "POSTAL CODE", "ADDRESS", "DELIVERY NOTE", "ITEMS", "SUBTOTAL", "SHIPPING", "METHOD", "AMOUNT", "STATUS", "CREATED"],
       ...orders.map((order) => [
         order.orderNo,
         order.customer,
+        order.email,
+        order.shipping?.recipient_name ?? "",
+        order.shipping?.phone ?? "",
+        order.shipping?.postal_code ?? "",
+        [order.shipping?.address_line1, order.shipping?.address_line2].filter(Boolean).join(" "),
+        order.shipping?.delivery_message ?? "",
+        order.items.join(" | "),
+        String(order.subtotal),
+        String(order.shippingFee),
         order.method,
         String(order.amount),
         order.status,
@@ -752,7 +782,8 @@ function Orders() {
       <div className="admin-table orders-table">
         <div className="table-head">
           <span>주문번호</span>
-          <span>입금자</span>
+          <span>주문자 · 결제</span>
+          <span>배송지</span>
           <span>상품</span>
           <span>결제금액</span>
           <span>상태</span>
@@ -761,11 +792,12 @@ function Orders() {
           orders.map((order) => (
             <div className="table-row" key={order.id}>
               <span>{order.orderNo}</span>
-              <span className="order-customer">{order.customer}<small>{order.method}</small></span>
+              <span className="order-customer">{order.customer}<small>{order.email || order.method}</small><small>{order.email ? order.method : ""}</small></span>
+              <span className="order-shipping">{order.shipping ? <><b>{order.shipping.recipient_name || order.customer} · {order.shipping.phone}</b><small>({order.shipping.postal_code}) {order.shipping.address_line1} {order.shipping.address_line2}</small>{order.shipping.delivery_message ? <em>“{order.shipping.delivery_message}”</em> : null}</> : <small>기존 주문 · 배송지 미기록</small>}</span>
               <span>
                 {order.items.join(", ")}
               </span>
-              <span>{formatWon(order.amount)}</span>
+              <span className="order-amount">{formatWon(order.amount)}<small>상품 {formatWon(order.subtotal)} · 배송 {order.shippingFee ? formatWon(order.shippingFee) : "무료"}</small></span>
               <span className={`status ${order.status}`}>{order.status}</span>
             </div>
           ))
@@ -782,6 +814,9 @@ type TransferOrder = {
   order_no: string;
   depositor_name: string;
   amount: number;
+  subtotal: number;
+  shipping_fee: number;
+  shipping_address: ShippingAddress | null;
   items: { name: string; option: string; quantity: number }[];
   payment_deadline: string;
   status: string;

@@ -25,7 +25,7 @@ Deno.serve(async request => {
     if (!orderId) return Response.json({ error: 'order_id is required' }, { status: 400, headers: corsHeaders })
 
     const { data: order, error } = await userClient.from('bank_transfer_orders')
-      .select('id,order_no,depositor_name,amount,items,payment_deadline,status,telegram_notified_at')
+      .select('id,order_no,depositor_name,subtotal,shipping_fee,amount,items,shipping_address,payment_deadline,status,telegram_notified_at')
       .eq('id', orderId).single()
     if (error || !order) return Response.json({ error: 'Order not found' }, { status: 404, headers: corsHeaders })
     if (order.telegram_notified_at) return Response.json({ sent: true, duplicate: true }, { headers: corsHeaders })
@@ -39,14 +39,23 @@ Deno.serve(async request => {
       `• ${escapeHtml(item.name)} / ${escapeHtml(item.option)} × ${escapeHtml(item.quantity)}`
     ).join('\n')
     const amount = Number(order.amount).toLocaleString('ko-KR')
+    const subtotal = Number(order.subtotal).toLocaleString('ko-KR')
+    const shippingFee = Number(order.shipping_fee).toLocaleString('ko-KR')
+    const shipping = (order.shipping_address ?? {}) as Record<string, unknown>
+    const address = [shipping.address_line1, shipping.address_line2].filter(Boolean).join(' ')
     const deadline = new Date(order.payment_deadline).toLocaleString('ko-KR', { timeZone: 'Asia/Seoul' })
     const message = [
       '<b>PHILIA · 새 계좌이체 주문</b>', '',
       `<b>주문번호</b> ${escapeHtml(order.order_no)}`,
       `<b>입금자명</b> ${escapeHtml(order.depositor_name)}`,
-      `<b>입금금액</b> ₩${amount}`,
+      `<b>입금금액</b> ₩${amount} (상품 ₩${subtotal} + 배송 ₩${shippingFee})`,
       `<b>입금기한</b> ${escapeHtml(deadline)}`,
-      `<b>상태</b> ${escapeHtml(order.status)}`, '', itemLines,
+      `<b>상태</b> ${escapeHtml(order.status)}`, '',
+      `<b>수령인</b> ${escapeHtml(shipping.recipient_name)}`,
+      `<b>연락처</b> ${escapeHtml(shipping.phone)}`,
+      `<b>배송지</b> (${escapeHtml(shipping.postal_code)}) ${escapeHtml(address)}`,
+      shipping.delivery_message ? `<b>배송메모</b> ${escapeHtml(shipping.delivery_message)}` : '',
+      '', itemLines,
     ].join('\n')
 
     const telegramResponse = await fetch(`https://api.telegram.org/bot${botToken}/sendMessage`, {
