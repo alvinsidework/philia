@@ -6,11 +6,8 @@ import { formatWon } from '../data'
 import { supabase } from '../lib/supabase'
 import { useAppStore } from '../store/AppStore'
 
-type PaymentSetting = { bank_name: string; account_number: string; account_holder: string; deposit_deadline_hours: number }
 type ShippingInfo = { recipient_name: string; phone: string; postal_code: string; address_line1: string; address_line2: string; delivery_message: string }
-type BankOrder = { id: string; order_no: string; amount: number; depositor_name: string; payment_deadline: string; bank_snapshot: PaymentSetting }
 type PreparedTossOrder = { id: string; orderId: string; orderName: string; amount: number; subtotal: number; shippingFee: number; customerName: string; customerEmail: string }
-type PaymentMethod = 'toss' | 'bank'
 type PostcodeResult = { zonecode: string; roadAddress: string; jibunAddress: string; userSelectedType: 'R' | 'J' }
 
 declare global {
@@ -51,11 +48,8 @@ const errorMessage = (error: unknown) => error instanceof Error ? error.message 
 export function Checkout() {
   const { t, i18n } = useTranslation()
   const { user, profile, refreshProfile } = useAuth()
-  const { cart, products, clearCart } = useAppStore()
+  const { cart, products } = useAppStore()
   const detailAddressRef = useRef<HTMLInputElement>(null)
-  const [method, setMethod] = useState<PaymentMethod>('toss')
-  const [setting, setSetting] = useState<PaymentSetting | null>(null)
-  const [settingLoaded, setSettingLoaded] = useState(false)
   const [recipientName, setRecipientName] = useState(profile?.display_name ?? '')
   const [phone, setPhone] = useState(profile?.phone ?? '')
   const [postalCode, setPostalCode] = useState(profile?.postal_code ?? '')
@@ -63,12 +57,9 @@ export function Checkout() {
   const [addressLine2, setAddressLine2] = useState(profile?.address_line2 ?? '')
   const [deliveryMessage, setDeliveryMessage] = useState('')
   const [saveToProfile, setSaveToProfile] = useState(true)
-  const [depositor, setDepositor] = useState(profile?.display_name ?? '')
   const [agreed, setAgreed] = useState(false)
-  const [order, setOrder] = useState<BankOrder | null>(null)
   const [busy, setBusy] = useState(false)
   const [message, setMessage] = useState('')
-  const [copied, setCopied] = useState(false)
 
   const lines = cart.flatMap(item => {
     const product = products.find(candidate => candidate.id === item.productId)
@@ -87,20 +78,11 @@ export function Checkout() {
   useEffect(() => {
     if (!profile) return
     setRecipientName(current => current || profile.display_name || '')
-    setDepositor(current => current || profile.display_name || '')
     setPhone(current => current || profile.phone || '')
     setPostalCode(current => current || profile.postal_code || '')
     setAddressLine1(current => current || profile.address_line1 || '')
     setAddressLine2(current => current || profile.address_line2 || '')
   }, [profile])
-
-  useEffect(() => {
-    if (!supabase) { setSettingLoaded(true); return }
-    void supabase.from('payment_settings').select('bank_name,account_number,account_holder,deposit_deadline_hours').eq('active', true).maybeSingle().then(({ data }) => {
-      setSetting(data as PaymentSetting | null)
-      setSettingLoaded(true)
-    })
-  }, [])
 
   const openAddressSearch = async () => {
     setMessage('')
@@ -157,48 +139,22 @@ export function Checkout() {
     })
   }
 
-  const placeBankOrder = async () => {
-    if (!supabase || !user || !lines.length || !setting || depositor.trim().length < 2) return
-    await syncProfile()
-    const items = lines.map(line => ({ sku: line.sku, option: line.option, quantity: line.quantity }))
-    const { data, error } = await supabase.rpc('create_bank_transfer_order', { payer_name: depositor.trim(), order_items: items, shipping_info: shippingInfo })
-    if (error) throw error
-    const created = data as BankOrder
-    setOrder(created)
-    clearCart()
-    const { error: notifyError } = await supabase.functions.invoke('notify-bank-order', { body: { order_id: created.id } })
-    if (notifyError) console.warn('Telegram notification pending:', notifyError.message)
-  }
-
   const submitCheckout = async (event: FormEvent) => {
     event.preventDefault()
     if (!shippingComplete) { setMessage(String(t('checkout.shippingRequired'))); return }
-    if (method === 'toss' && !agreed) { setMessage(String(t('checkout.agreementRequired'))); return }
-    if (method === 'bank' && depositor.trim().length < 2) { setMessage(String(t('checkout.depositorRequired'))); return }
+    if (!agreed) { setMessage(String(t('checkout.agreementRequired'))); return }
     setBusy(true)
     setMessage('')
     try {
-      if (method === 'toss') await payWithToss()
-      else await placeBankOrder()
+      await payWithToss()
     } catch (error) {
       setMessage(errorMessage(error))
       setBusy(false)
     }
   }
 
-  const copy = async () => {
-    if (!setting) return
-    await navigator.clipboard.writeText(setting.account_number)
-    setCopied(true)
-    window.setTimeout(() => setCopied(false), 1500)
-  }
-
   if (!user) return <main className="checkout-gate"><p>{t('checkout.login')}</p><Link to="/account">LOGIN →</Link></main>
-  if (!lines.length && !order) return <main className="checkout-gate"><p>{t('cart.empty')}</p><Link to="/shop">SHOP →</Link></main>
-  if (order) {
-    const bank = order.bank_snapshot
-    return <main className="checkout-complete"><section><p>ORDER {order.order_no}</p><h1>{t('checkout.complete')}</h1><span>{t('checkout.instruction', { deadline: new Date(order.payment_deadline).toLocaleString(i18n.language), amount: formatWon(order.amount) })}</span><div className="transfer-ticket"><p>{bank.bank_name}</p><strong>{bank.account_number}</strong><span>{bank.account_holder} · {order.depositor_name}</span><b>{formatWon(order.amount)}</b><button onClick={copy}>{copied ? t('checkout.copied') : t('checkout.accountCopy')}</button></div><Link to="/account?tab=orders">{t('nav.orders')} →</Link></section></main>
-  }
+  if (!lines.length) return <main className="checkout-gate"><p>{t('cart.empty')}</p><Link to="/shop">SHOP →</Link></main>
 
   return <main className="checkout-page">
     <form className="checkout-form" onSubmit={submitCheckout}>
@@ -221,12 +177,8 @@ export function Checkout() {
       </fieldset>
       <fieldset className="checkout-section">
         <legend><span>03</span>{t('checkout.method')}</legend>
-        <div className="payment-method-tabs" role="tablist" aria-label={String(t('checkout.method'))}>
-          <button type="button" id="toss-payment-tab" className={method === 'toss' ? 'active' : ''} role="tab" aria-controls="toss-payment-panel" aria-selected={method === 'toss'} onClick={() => { setMethod('toss'); setMessage('') }}><span>TOSS PAYMENTS</span><small>{t('checkout.card')}</small></button>
-          <button type="button" id="bank-payment-tab" className={method === 'bank' ? 'active' : ''} role="tab" aria-controls="bank-payment-panel" aria-selected={method === 'bank'} onClick={() => { setMethod('bank'); setMessage('') }}><span>BANK TRANSFER</span><small>{t('checkout.bankTransfer')}</small></button>
-        </div>
-        {method === 'toss' ? <section id="toss-payment-panel" className="toss-checkout-panel" role="tabpanel" aria-labelledby="toss-payment-tab"><div className="test-payment-notice"><b>TEST</b><span>{t('checkout.testNotice')}</span></div><label className="checkout-agreement"><input type="checkbox" checked={agreed} onChange={event => setAgreed(event.target.checked)} /><span>{t('checkout.agreement')}</span></label><button type="submit" className="ink-button toss-pay-button" disabled={busy || !agreed || !shippingComplete}>{busy ? t('common.loading') : t('checkout.tossPay', { amount: formatWon(estimatedTotal) })}</button><p>{t('checkout.testHelp')}</p></section> : null}
-        {method === 'bank' ? <section id="bank-payment-panel" className="bank-checkout-panel" role="tabpanel" aria-labelledby="bank-payment-tab">{setting ? <div className="bank-preview"><span>{t('checkout.bank')}</span><strong>{setting.bank_name} · {setting.account_number}</strong><em>{setting.account_holder}</em></div> : <p>{settingLoaded ? t('checkout.unavailable') : t('common.loading')}</p>}<label>{t('checkout.depositor')}<input value={depositor} onChange={event => setDepositor(event.target.value)} required /></label><p>{t('checkout.depositorHelp')}</p><button type="submit" className="ink-button" disabled={busy || !setting || !shippingComplete}>{busy ? t('common.loading') : t('checkout.order')}</button></section> : null}
+        <div className="toss-method-card"><div><span>TOSS PAYMENTS</span><small>{t('checkout.card')}</small></div><b>{t('checkout.onlyToss')}</b></div>
+        <section className="toss-checkout-panel"><div className="test-payment-notice"><b>TEST</b><span>{t('checkout.testNotice')}</span></div><label className="checkout-agreement"><input type="checkbox" checked={agreed} onChange={event => setAgreed(event.target.checked)} /><span>{t('checkout.agreement')}</span></label><button type="submit" className="ink-button toss-pay-button" disabled={busy || !agreed || !shippingComplete}>{busy ? t('common.loading') : t('checkout.tossPay', { amount: formatWon(estimatedTotal) })}</button><p>{t('checkout.testHelp')}</p></section>
       </fieldset>
       <span className="checkout-message" role="status">{message}</span>
     </form>

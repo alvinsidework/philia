@@ -17,7 +17,6 @@ type AdminView =
   | "inventory"
   | "finance"
   | "orders"
-  | "payments"
   | "editorial"
   | "content"
   | "users"
@@ -29,11 +28,10 @@ const nav: [AdminView, string, string][] = [
   ["inventory", "inventory", "03"],
   ["finance", "finance", "04"],
   ["orders", "orders", "05"],
-  ["payments", "payments", "06"],
-  ["editorial", "editorial", "07"],
-  ["content", "content", "08"],
-  ["users", "users", "09"],
-  ["settings", "settings", "10"],
+  ["editorial", "editorial", "06"],
+  ["content", "content", "07"],
+  ["users", "users", "08"],
+  ["settings", "settings", "09"],
 ];
 
 const soldOf = (product: Product) =>
@@ -142,7 +140,6 @@ export function Admin() {
           <Finance products={products} onUpdate={saveProduct} />
         ) : null}
         {view === "orders" ? <Orders /> : null}
-        {view === "payments" ? <PaymentsAdmin /> : null}
         {view === "editorial" ? <EditorialAdmin /> : null}
         {view === "content" ? <ContentManagement /> : null}
         {view === "users" ? <UserManagement /> : null}
@@ -674,7 +671,10 @@ type AdminOrderRow = {
   shippingFee: number;
   status: string;
   createdAt: string;
+  paidAt: string | null;
   method: string;
+  paymentReference: string | null;
+  receiptUrl: string | null;
   items: string[];
   shipping: ShippingAddress | null;
 };
@@ -691,47 +691,42 @@ type ShippingAddress = {
 function Orders() {
   const [orders, setOrders] = useState<AdminOrderRow[]>([]);
   const [message, setMessage] = useState("");
-  useEffect(() => {
+  const [loading, setLoading] = useState(true);
+  const load = async () => {
     if (!supabase) return;
-    void Promise.all([
-      supabase.from("orders").select("id,order_no,email,customer_name,subtotal,shipping_fee,total,shipping_address,status,payment_provider,payment_method,created_at,order_items(product_name,option_label,quantity)").order("created_at", { ascending: false }),
-      supabase.from("bank_transfer_orders").select("*").order("created_at", { ascending: false }),
-    ]).then(([commerce, bank]) => {
-      const commerceRows = (commerce.data ?? []).map((order) => ({
-        id: order.id,
-        orderNo: order.order_no,
-        customer: order.customer_name,
-        email: order.email,
-        amount: order.total,
-        subtotal: order.subtotal,
-        shippingFee: order.shipping_fee,
-        status: order.status,
-        createdAt: order.created_at,
-        method: order.payment_provider === "toss" ? `TOSS ${order.payment_method ?? "TEST"}` : "ONLINE",
-        items: (order.order_items ?? []).map((item) => `${item.product_name} / ${item.option_label} × ${item.quantity}`),
-        shipping: order.shipping_address as ShippingAddress | null,
-      }));
-      const bankRows = ((bank.data ?? []) as TransferOrder[]).map((order) => ({
-        id: order.id,
-        orderNo: order.order_no,
-        customer: order.depositor_name,
-        email: "",
-        amount: order.amount,
-        subtotal: order.subtotal,
-        shippingFee: order.shipping_fee,
-        status: order.status,
-        createdAt: order.created_at,
-        method: "BANK TRANSFER",
-        items: order.items.map((item) => `${item.name} / ${item.option} × ${item.quantity}`),
-        shipping: order.shipping_address,
-      }));
-      setOrders([...commerceRows, ...bankRows].sort((a, b) => b.createdAt.localeCompare(a.createdAt)));
-      setMessage(commerce.error?.message ?? bank.error?.message ?? "");
-    });
+    setLoading(true);
+    const { data, error } = await supabase.from("orders")
+      .select("id,order_no,email,customer_name,subtotal,shipping_fee,total,shipping_address,status,payment_provider,payment_method,payment_reference,payment_receipt_url,paid_at,created_at,order_items(product_name,option_label,quantity)")
+      .eq("payment_provider", "toss")
+      .order("created_at", { ascending: false });
+    setOrders((data ?? []).map((order) => ({
+      id: order.id,
+      orderNo: order.order_no,
+      customer: order.customer_name,
+      email: order.email,
+      amount: order.total,
+      subtotal: order.subtotal,
+      shippingFee: order.shipping_fee,
+      status: order.status,
+      createdAt: order.created_at,
+      paidAt: order.paid_at,
+      method: `TOSS ${order.payment_method ?? "READY"}`,
+      paymentReference: order.payment_reference,
+      receiptUrl: order.payment_receipt_url,
+      items: (order.order_items ?? []).map((item) => `${item.product_name} / ${item.option_label} × ${item.quantity}`),
+      shipping: order.shipping_address as ShippingAddress | null,
+    })));
+    setMessage(error?.message ?? "");
+    setLoading(false);
+  };
+  useEffect(() => {
+    void load();
   }, []);
+  const paidOrders = orders.filter((order) => order.status === "paid" || ["preparing", "shipped", "completed"].includes(order.status));
+  const pendingOrders = orders.filter((order) => order.status === "pending");
   const exportCsv = () => {
     const rows = [
-      ["ORDER", "CUSTOMER", "EMAIL", "RECIPIENT", "PHONE", "POSTAL CODE", "ADDRESS", "DELIVERY NOTE", "ITEMS", "SUBTOTAL", "SHIPPING", "METHOD", "AMOUNT", "STATUS", "CREATED"],
+      ["ORDER", "CUSTOMER", "EMAIL", "RECIPIENT", "PHONE", "POSTAL CODE", "ADDRESS", "DELIVERY NOTE", "ITEMS", "SUBTOTAL", "SHIPPING", "METHOD", "PAYMENT KEY", "AMOUNT", "STATUS", "PAID", "CREATED"],
       ...orders.map((order) => [
         order.orderNo,
         order.customer,
@@ -745,8 +740,10 @@ function Orders() {
         String(order.subtotal),
         String(order.shippingFee),
         order.method,
+        order.paymentReference ?? "",
         String(order.amount),
         order.status,
+        order.paidAt ?? "",
         order.createdAt,
       ]),
     ];
@@ -771,13 +768,13 @@ function Orders() {
     <div className="admin-content">
       <section className="admin-section-head">
         <div>
-          <p>ORDERS · 주문</p>
+          <p>TOSS PAYMENTS · 주문</p>
           <h2>
-            주문 관리 <span>{orders.length}</span>
+            결제 주문 관리 <span>{orders.length}</span>
           </h2>
           <span>{message}</span>
         </div>
-        <button onClick={exportCsv}>주문 내보내기 ↓</button>
+        <div className="toss-admin-actions"><span>승인 {paidOrders.length} · 결제대기 {pendingOrders.length}</span><button onClick={() => void load()} disabled={loading}>{loading ? "불러오는 중…" : "새로고침"}</button><button onClick={exportCsv}>주문 내보내기 ↓</button></div>
       </section>
       <div className="admin-table orders-table">
         <div className="table-head">
@@ -792,208 +789,18 @@ function Orders() {
           orders.map((order) => (
             <div className="table-row" key={order.id}>
               <span>{order.orderNo}</span>
-              <span className="order-customer">{order.customer}<small>{order.email || order.method}</small><small>{order.email ? order.method : ""}</small></span>
+              <span className="order-customer">{order.customer}<small>{order.email}</small><small>{order.method}</small>{order.paymentReference ? <code title={order.paymentReference}>{order.paymentReference.slice(0, 12)}…</code> : <small>승인 대기</small>}</span>
               <span className="order-shipping">{order.shipping ? <><b>{order.shipping.recipient_name || order.customer} · {order.shipping.phone}</b><small>({order.shipping.postal_code}) {order.shipping.address_line1} {order.shipping.address_line2}</small>{order.shipping.delivery_message ? <em>“{order.shipping.delivery_message}”</em> : null}</> : <small>기존 주문 · 배송지 미기록</small>}</span>
               <span>
                 {order.items.join(", ")}
               </span>
               <span className="order-amount">{formatWon(order.amount)}<small>상품 {formatWon(order.subtotal)} · 배송 {order.shippingFee ? formatWon(order.shippingFee) : "무료"}</small></span>
-              <span className={`status ${order.status}`}>{order.status}</span>
+              <span className="toss-order-status"><b className={`status ${order.status}`}>{order.status}</b><small>{order.paidAt ? new Date(order.paidAt).toLocaleString("ko-KR") : new Date(order.createdAt).toLocaleString("ko-KR")}</small>{order.receiptUrl ? <a href={order.receiptUrl} target="_blank" rel="noreferrer">영수증 확인 ↗</a> : null}</span>
             </div>
           ))
         ) : (
           <p className="admin-list-message">접수된 주문이 없습니다.</p>
         )}
-      </div>
-    </div>
-  );
-}
-
-type TransferOrder = {
-  id: string;
-  order_no: string;
-  depositor_name: string;
-  amount: number;
-  subtotal: number;
-  shipping_fee: number;
-  shipping_address: ShippingAddress | null;
-  items: { name: string; option: string; quantity: number }[];
-  payment_deadline: string;
-  status: string;
-  telegram_notified_at: string | null;
-  created_at: string;
-};
-type PaymentSetting = {
-  id: string;
-  bank_name: string;
-  account_number: string;
-  account_holder: string;
-  deposit_deadline_hours: number;
-  active: boolean;
-};
-
-function PaymentsAdmin() {
-  const { t } = useTranslation();
-  const [orders, setOrders] = useState<TransferOrder[]>([]);
-  const [setting, setSetting] = useState<PaymentSetting | null>(null);
-  const [message, setMessage] = useState("");
-  const load = async () => {
-    if (!supabase) return;
-    const [{ data: orderData }, { data: settingData }] = await Promise.all([
-      supabase
-        .from("bank_transfer_orders")
-        .select("*")
-        .order("created_at", { ascending: false }),
-      supabase
-        .from("payment_settings")
-        .select("*")
-        .order("updated_at", { ascending: false })
-        .limit(1)
-        .maybeSingle(),
-    ]);
-    setOrders((orderData ?? []) as TransferOrder[]);
-    setSetting(settingData as PaymentSetting | null);
-  };
-  useEffect(() => {
-    void load();
-  }, []);
-  const saveSetting = async (event: FormEvent) => {
-    event.preventDefault();
-    if (!supabase || !setting) return;
-    const { error } = await supabase
-      .from("payment_settings")
-      .update({
-        bank_name: setting.bank_name,
-        account_number: setting.account_number,
-        account_holder: setting.account_holder,
-        deposit_deadline_hours: setting.deposit_deadline_hours,
-        active: true,
-      })
-      .eq("id", setting.id);
-    setMessage(error?.message ?? String(t("common.save")));
-    if (!error) void load();
-  };
-  const confirm = async (id: string) => {
-    if (!supabase) return;
-    const { error } = await supabase
-      .from("bank_transfer_orders")
-      .update({ status: "paid", paid_at: new Date().toISOString() })
-      .eq("id", id);
-    setMessage(error?.message ?? "OK");
-    if (!error) void load();
-  };
-  return (
-    <div className="admin-content">
-      <section className="admin-section-head">
-        <div>
-          <p>BANK TRANSFER · {t("admin.payments")}</p>
-          <h2>
-            {t("admin.pendingTransfers")}{" "}
-            <span>
-              {
-                orders.filter((order) => order.status === "awaiting_deposit")
-                  .length
-              }
-            </span>
-          </h2>
-        </div>
-        <span>{message}</span>
-      </section>
-      <div className="payment-admin-layout">
-        <section className="admin-card payment-setting">
-          <h3>{t("admin.paymentSettings")}</h3>
-          {setting ? (
-            <form onSubmit={saveSetting}>
-              <label>
-                {t("admin.bankName")}
-                <input
-                  value={setting.bank_name}
-                  onChange={(e) =>
-                    setSetting({ ...setting, bank_name: e.target.value })
-                  }
-                  required
-                />
-              </label>
-              <label>
-                {t("admin.accountNumber")}
-                <input
-                  value={setting.account_number}
-                  onChange={(e) =>
-                    setSetting({ ...setting, account_number: e.target.value })
-                  }
-                  required
-                />
-              </label>
-              <label>
-                {t("admin.accountHolder")}
-                <input
-                  value={setting.account_holder}
-                  onChange={(e) =>
-                    setSetting({ ...setting, account_holder: e.target.value })
-                  }
-                  required
-                />
-              </label>
-              <label>
-                {t("admin.deadlineHours")}
-                <input
-                  type="number"
-                  min="1"
-                  max="168"
-                  value={setting.deposit_deadline_hours}
-                  onChange={(e) =>
-                    setSetting({
-                      ...setting,
-                      deposit_deadline_hours: Number(e.target.value),
-                    })
-                  }
-                />
-              </label>
-              <button className="ink-button">{t("common.save")}</button>
-            </form>
-          ) : (
-            <p>{t("common.loading")}</p>
-          )}
-          <p className="telegram-note">
-            <i /> {t("admin.telegram")} · TELEGRAM_BOT_TOKEN / TELEGRAM_CHAT_ID
-          </p>
-        </section>
-        <section className="transfer-list">
-          {orders.length ? (
-            orders.map((order) => (
-              <article className="admin-card" key={order.id}>
-                <header>
-                  <div>
-                    <p>{order.order_no}</p>
-                    <h3>{order.depositor_name}</h3>
-                  </div>
-                  <strong>{formatWon(order.amount)}</strong>
-                </header>
-                <div className="transfer-items">
-                  {order.items.map((item, index) => (
-                    <span key={`${item.name}-${index}`}>
-                      {item.name} · {item.option} × {item.quantity}
-                    </span>
-                  ))}
-                </div>
-                <footer>
-                  <span>
-                    {new Date(order.payment_deadline).toLocaleString()} ·{" "}
-                    {order.telegram_notified_at ? "TELEGRAM ✓" : "TELEGRAM —"}
-                  </span>
-                  <b>{order.status}</b>
-                  {order.status === "awaiting_deposit" ? (
-                    <button onClick={() => void confirm(order.id)}>
-                      {t("admin.confirmPayment")}
-                    </button>
-                  ) : null}
-                </footer>
-              </article>
-            ))
-          ) : (
-            <p>{t("common.empty")}</p>
-          )}
-        </section>
       </div>
     </div>
   );

@@ -93,12 +93,10 @@ function MemberAccount() {
     void Promise.all([
       client.from('point_transactions').select('id,amount,description,created_at,expires_at').order('created_at', { ascending: false }),
       client.from('orders').select('id,order_no,status,total,created_at').order('created_at', { ascending: false }),
-      client.from('bank_transfer_orders').select('id,order_no,status,amount,created_at').order('created_at', { ascending: false }),
       client.from('reviews').select('id,title,rating,product_name,created_at').order('created_at', { ascending: false }),
       client.from('inquiries').select('id,title,category,status,created_at,answer').order('created_at', { ascending: false }),
-    ]).then(([p, o, bank, r, q]) => {
-      const transferRows = ((bank.data ?? []) as (Omit<OrderRow, 'total'> & { amount: number })[]).map(row => ({ ...row, total: row.amount }))
-      setPoints((p.data ?? []) as PointRow[]); setOrders([...(o.data ?? []) as OrderRow[], ...transferRows].sort((a, b) => b.created_at.localeCompare(a.created_at))); setReviews((r.data ?? []) as ReviewRow[]); setInquiries((q.data ?? []) as InquiryRow[]); setDataLoading(false)
+    ]).then(([p, o, r, q]) => {
+      setPoints((p.data ?? []) as PointRow[]); setOrders((o.data ?? []) as OrderRow[]); setReviews((r.data ?? []) as ReviewRow[]); setInquiries((q.data ?? []) as InquiryRow[]); setDataLoading(false)
     })
   }, [user])
 
