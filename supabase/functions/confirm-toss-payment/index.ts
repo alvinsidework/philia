@@ -23,7 +23,7 @@ Deno.serve(async request => {
     const supabaseUrl = Deno.env.get('SUPABASE_URL')!
     const anonKey = Deno.env.get('SUPABASE_ANON_KEY')!
     const serviceRoleKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
-    const tossSecretKey = Deno.env.get('TOSS_SECRET_KEY')
+    const tossSecretKey = Deno.env.get('TOSS_SECRET_KEY')?.trim()
     if (!tossSecretKey?.startsWith('live_sk_')) return json({ error: 'Live Toss Payments is not configured' }, 503)
 
     const userClient = createClient(supabaseUrl, anonKey, { global: { headers: { Authorization: authorization } } })
@@ -51,6 +51,13 @@ Deno.serve(async request => {
     })
     const payment = await tossResponse.json()
     if (!tossResponse.ok) {
+      console.error(JSON.stringify({
+        event: 'toss_payment_approval_failed',
+        orderId: order.order_no,
+        status: tossResponse.status,
+        code: payment.code ?? 'UNKNOWN',
+        message: payment.message ?? 'Toss payment approval failed',
+      }))
       return json({ error: payment.message ?? 'Toss payment approval failed', code: payment.code }, tossResponse.status)
     }
     if (payment.orderId !== order.order_no || Number(payment.totalAmount) !== Number(order.total)) {

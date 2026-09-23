@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
+import { FunctionsHttpError } from '@supabase/supabase-js'
 import { formatWon } from '../data'
 import { supabase } from '../lib/supabase'
 import { useAppStore } from '../store/AppStore'
@@ -10,7 +11,11 @@ type ConfirmResult = {
   order?: { order_no?: string }
   payment?: { orderId: string; method: string; totalAmount: number; receiptUrl: string | null }
   error?: string
+  code?: string
 }
+
+const paymentErrorMessage = (result: Pick<ConfirmResult, 'error' | 'code'>) =>
+  [result.error, result.code ? `(${result.code})` : ''].filter(Boolean).join(' ')
 
 export function TossPaymentSuccess() {
   const { t } = useTranslation()
@@ -32,18 +37,31 @@ export function TossPaymentSuccess() {
       setState('error')
       return
     }
-    void supabase.functions.invoke('confirm-toss-payment', {
-      body: { paymentKey, orderId, amount },
-    }).then(({ data, error }) => {
-      if (error || !data?.approved) {
-        setResult({ approved: false, error: data?.error ?? error?.message ?? String(t('checkout.tossFailed')) })
-        setState('error')
-        return
-      }
-      setResult(data as ConfirmResult)
-      clearCart()
-      setState('success')
-    })
+    void supabase.functions
+      .invoke('confirm-toss-payment', {
+        body: { paymentKey, orderId, amount },
+      })
+      .then(async ({ data, error }) => {
+        let failure = data as ConfirmResult | null
+        if (error instanceof FunctionsHttpError) {
+          try {
+            failure = (await error.context.json()) as ConfirmResult
+          } catch {
+            // The generic network error below remains available as a fallback.
+          }
+        }
+        if (error || !data?.approved) {
+          const detail = failure
+            ? paymentErrorMessage(failure)
+            : error?.message ?? String(t('checkout.tossFailed'))
+          setResult({ approved: false, error: detail })
+          setState('error')
+          return
+        }
+        setResult(data as ConfirmResult)
+        clearCart()
+        setState('success')
+      })
   }, [amount, clearCart, orderId, paymentKey, t])
 
   return <main className="payment-result-page"><section>
