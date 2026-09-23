@@ -312,16 +312,43 @@ function Inventory({
 }) {
   const [selected, setSelected] = useState(products[0]?.id ?? "");
   const [message, setMessage] = useState("");
+  const [stockTargets, setStockTargets] = useState<Record<string, string>>({});
+  const [savingVariant, setSavingVariant] = useState("");
   const product = products.find((p) => p.id === selected) ?? products[0];
   const adjust = async (variant: Variant, amount: number) => {
+    setSavingVariant(variant.id);
     setMessage("저장 중…");
     try {
-      await onAdjust(variant.id, amount);
+      const saved = await onAdjust(variant.id, amount);
+      if (!saved) throw new Error("Supabase 연결을 확인해 주세요.");
       setMessage("재고 이동을 기록했습니다.");
+      return true;
     } catch (error) {
       setMessage(
         error instanceof Error ? error.message : "재고를 변경하지 못했습니다.",
       );
+      return false;
+    } finally {
+      setSavingVariant("");
+    }
+  };
+  const setExactStock = async (event: FormEvent, variant: Variant) => {
+    event.preventDefault();
+    const rawTarget = stockTargets[variant.id] ?? "";
+    const target = Number(rawTarget);
+    if (!rawTarget || !Number.isInteger(target) || target < 0) {
+      setMessage("목표 재고를 0 이상의 정수로 입력해 주세요.");
+      return;
+    }
+    const delta = target - variant.stock;
+    if (delta === 0) {
+      setMessage("현재 재고와 같은 수량입니다.");
+      return;
+    }
+    const saved = await adjust(variant, delta);
+    if (saved) {
+      setStockTargets((current) => ({ ...current, [variant.id]: "" }));
+      setMessage(`재고를 ${target}개로 변경했습니다.`);
     }
   };
   if (!product)
@@ -384,7 +411,7 @@ function Inventory({
               <span>입고</span>
               <span>판매</span>
               <span>현재</span>
-              <span>빠른 조정</span>
+              <span>빠른 조정 · 목표 재고</span>
             </div>
             {product.variants.map((v) => (
               <div key={v.id}>
@@ -399,21 +426,59 @@ function Inventory({
                 <strong className={v.stock <= 4 ? "low-number" : ""}>
                   {v.stock}
                 </strong>
-                <span className="adjust">
+                <div className="adjust">
                   <button
-                    disabled={v.stock <= 0}
+                    type="button"
+                    aria-label={`${v.color} ${v.size} 재고 1개 감소`}
+                    disabled={v.stock <= 0 || Boolean(savingVariant)}
                     onClick={() => void adjust(v, -1)}
                   >
                     −
                   </button>
-                  <button onClick={() => void adjust(v, 1)}>+</button>
-                </span>
+                  <button
+                    type="button"
+                    aria-label={`${v.color} ${v.size} 재고 1개 증가`}
+                    disabled={Boolean(savingVariant)}
+                    onClick={() => void adjust(v, 1)}
+                  >
+                    +
+                  </button>
+                  <form
+                    className="stock-target-form"
+                    onSubmit={(event) => void setExactStock(event, v)}
+                  >
+                    <input
+                      type="number"
+                      inputMode="numeric"
+                      min="0"
+                      step="1"
+                      value={stockTargets[v.id] ?? ""}
+                      onChange={(event) =>
+                        setStockTargets((current) => ({
+                          ...current,
+                          [v.id]: event.target.value,
+                        }))
+                      }
+                      disabled={Boolean(savingVariant)}
+                      aria-label={`${v.color} ${v.size} 목표 재고`}
+                      placeholder={String(v.stock)}
+                    />
+                    <button
+                      type="submit"
+                      disabled={
+                        Boolean(savingVariant) || !(stockTargets[v.id] ?? "")
+                      }
+                    >
+                      적용
+                    </button>
+                  </form>
+                </div>
               </div>
             ))}
           </div>
           <p className="formula-note">
             현재재고 = 기초재고 + 추가입고 − 판매수량 · 모든 조정은 Supabase
-            재고 이동 기록에 저장됩니다.
+            재고 이동 기록에 저장됩니다. 목표 재고에는 변경 후 수량을 입력하세요.
           </p>
         </section>
       </div>
