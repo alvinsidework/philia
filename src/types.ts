@@ -36,6 +36,14 @@ export type Product = {
   price: number
   description: string
   shortDescription: string
+  detailsKo: string
+  detailsEn: string
+  sizeGuideKo: string
+  sizeGuideEn: string
+  shippingKo: string
+  shippingEn: string
+  careKo: string
+  careEn: string
   material: string
   image: string
   images: string[]

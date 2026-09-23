@@ -9,7 +9,9 @@ type CostsRow = { purchase_cost: number; inbound_shipping: number; supplies: num
 type CatalogueRow = {
   id: string; piece_no: number; sku: string; slug: string; name_en: string; name_ko: string
   category: Product['category']; layer_label: string | null; price: number; description_ko: string | null
-  short_description_en: string | null; material: string | null; status: Product['status']; featured: boolean
+  short_description_en: string | null; details_ko: string | null; details_en: string | null
+  size_guide_ko: string | null; size_guide_en: string | null; shipping_ko: string | null; shipping_en: string | null
+  care_ko: string | null; care_en: string | null; material: string | null; status: Product['status']; featured: boolean
   sort_order: number; signatures: string[] | null; product_images: ProductImageRow[]; product_colors: ColorRow[]
   product_costs: CostsRow | CostsRow[] | null
 }
@@ -21,7 +23,7 @@ type AppStoreValue = {
   cart: CartItem[]
   cartOpen: boolean
   setCartOpen: (open: boolean) => void
-  addToCart: (productId: string, variantId: string) => void
+  addToCart: (productId: string, variantId: string, quantity?: number) => void
   removeFromCart: (productId: string, variantId: string) => void
   setQuantity: (productId: string, variantId: string, quantity: number) => void
   clearCart: () => void
@@ -59,7 +61,9 @@ const mapProduct = (row: CatalogueRow): Product => {
   return {
     id: row.id, piece: row.piece_no, sku: row.sku, slug: row.slug, name: row.name_en, nameKo: row.name_ko,
     category: row.category, layer: row.layer_label ?? '', price: row.price, description: row.description_ko ?? '',
-    shortDescription: row.short_description_en ?? '', material: row.material ?? '', image: images[0] ?? `/images/${row.slug}.jpg`, images: images.length ? images : [`/images/${row.slug}.jpg`],
+    shortDescription: row.short_description_en ?? '', detailsKo: row.details_ko ?? '', detailsEn: row.details_en ?? '',
+    sizeGuideKo: row.size_guide_ko ?? '', sizeGuideEn: row.size_guide_en ?? '', shippingKo: row.shipping_ko ?? '', shippingEn: row.shipping_en ?? '',
+    careKo: row.care_ko ?? '', careEn: row.care_en ?? '', material: row.material ?? '', image: images[0] ?? `/images/${row.slug}.jpg`, images: images.length ? images : [`/images/${row.slug}.jpg`],
     status: row.status, featured: row.featured, signatures: row.signatures ?? [], variants, costs,
   }
 }
@@ -78,7 +82,7 @@ export function AppStoreProvider({ children }: { children: ReactNode }) {
     setProductsLoading(true)
     let result = await supabase.from('products').select(`
       id,piece_no,sku,slug,name_en,name_ko,category,layer_label,price,description_ko,short_description_en,
-      material,status,featured,sort_order,signatures,
+      details_ko,details_en,size_guide_ko,size_guide_en,shipping_ko,shipping_en,care_ko,care_en,material,status,featured,sort_order,signatures,
       product_images(storage_path,sort_order),
       product_colors(id,name,hex,sort_order,product_variants(id,size,variant_sku,stock,opening_stock,received,sold,active)),
       product_costs(purchase_cost,inbound_shipping,supplies,outbound_shipping,payment_fee_rate,advertising,overhead,vat_rate,income_tax_rate)
@@ -86,7 +90,7 @@ export function AppStoreProvider({ children }: { children: ReactNode }) {
     if (result.error?.message.includes('opening_stock')) {
       result = await supabase.from('products').select(`
         id,piece_no,sku,slug,name_en,name_ko,category,layer_label,price,description_ko,short_description_en,
-        material,status,featured,sort_order,signatures,
+        details_ko,details_en,size_guide_ko,size_guide_en,shipping_ko,shipping_en,care_ko,care_en,material,status,featured,sort_order,signatures,
         product_images(storage_path,sort_order),
         product_colors(id,name,hex,sort_order,product_variants(id,size,variant_sku,stock,active)),
         product_costs(purchase_cost,inbound_shipping,supplies,outbound_shipping,payment_fee_rate,advertising,overhead,vat_rate,income_tax_rate)
@@ -108,13 +112,14 @@ export function AppStoreProvider({ children }: { children: ReactNode }) {
   const persistCart = useCallback((updater: (current: CartItem[]) => CartItem[]) => {
     setCart(current => { const next = updater(current); localStorage.setItem(CART_KEY, JSON.stringify(next)); return next })
   }, [])
-  const addToCart = useCallback((productId: string, variantId: string) => {
+  const addToCart = useCallback((productId: string, variantId: string, quantity = 1) => {
     const product = products.find(item => item.id === productId)
     const variant = product?.variants.find(item => item.id === variantId)
     if (!product || product.status !== 'active' || !variant || variant.stock <= 0) return
     persistCart(current => {
       const found = current.find(item => item.productId === productId && item.variantId === variantId)
-      return found ? current.map(item => item === found ? { ...item, quantity: Math.min(variant.stock, item.quantity + 1) } : item) : [...current, { productId, variantId, quantity: 1 }]
+      const nextQuantity = Math.min(variant.stock, Math.max(1, quantity))
+      return found ? current.map(item => item === found ? { ...item, quantity: Math.min(variant.stock, item.quantity + nextQuantity) } : item) : [...current, { productId, variantId, quantity: nextQuantity }]
     })
     setCartOpen(true)
   }, [persistCart, products])
@@ -132,6 +137,8 @@ export function AppStoreProvider({ children }: { children: ReactNode }) {
         id: product.id, sku: product.sku, slug: product.slug, piece_no: product.piece, name_en: product.name,
         name_ko: product.nameKo, category: product.category, layer_label: product.layer, price: product.price,
         description_ko: product.description, short_description_en: product.shortDescription, material: product.material,
+        details_ko: product.detailsKo, details_en: product.detailsEn, size_guide_ko: product.sizeGuideKo, size_guide_en: product.sizeGuideEn,
+        shipping_ko: product.shippingKo, shipping_en: product.shippingEn, care_ko: product.careKo, care_en: product.careEn,
         status: product.status, featured: product.featured, sort_order: product.piece, signatures: product.signatures,
       },
       images: product.images.filter(Boolean).map((storage_path, sort_order) => ({ storage_path, sort_order })),
@@ -147,7 +154,7 @@ export function AppStoreProvider({ children }: { children: ReactNode }) {
         overhead: product.costs.overhead, vat_rate: product.costs.vatRate, income_tax_rate: product.costs.incomeTaxRate,
       },
     }
-    const { data, error } = await supabase.rpc('admin_save_product', { payload })
+    const { data, error } = await supabase.rpc('admin_save_product_v2', { payload })
     if (error) throw error
     await refreshProducts()
     return data as string

@@ -28,7 +28,7 @@ export function Shop() {
   const categories: Filter[] = ["ALL", "OUTER", "KNIT", "BOTTOM", "BAG"];
   return (
     <main className="shop-page">
-      <div className="page-kicker">SHOP · {t("nav.shop")}</div>
+      <div className="page-kicker">SHOP</div>
       <header className="shop-heading">
         <div>
           <h1>{t("shop.title")}</h1>
