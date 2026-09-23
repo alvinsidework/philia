@@ -47,9 +47,9 @@ export function TossPaymentSuccess() {
   }, [amount, clearCart, orderId, paymentKey, t])
 
   return <main className="payment-result-page"><section>
-    <p>TOSS PAYMENTS · TEST</p>
+    <p>TOSS PAYMENTS</p>
     {state === 'loading' ? <><h1>{t('checkout.tossConfirming')}</h1><span>{t('checkout.tossConfirmingHelp')}</span></> : null}
-    {state === 'success' ? <><h1>{t('checkout.tossComplete')}</h1><span>{result?.payment?.method ?? 'CARD'} · {formatWon(result?.payment?.totalAmount ?? amount)}</span><div className="payment-result-ticket"><small>ORDER</small><strong>{result?.payment?.orderId ?? orderId}</strong><b>{t('checkout.testCharge')}</b>{result?.payment?.receiptUrl ? <a href={result.payment.receiptUrl} target="_blank" rel="noreferrer">{t('checkout.receipt')} ↗</a> : null}</div><Link to="/account?tab=orders">{t('nav.orders')} →</Link></> : null}
+    {state === 'success' ? <><h1>{t('checkout.tossComplete')}</h1><span>{result?.payment?.method ?? 'CARD'} · {formatWon(result?.payment?.totalAmount ?? amount)}</span><div className="payment-result-ticket"><small>ORDER</small><strong>{result?.payment?.orderId ?? orderId}</strong><b>{t('checkout.tossCharge')}</b>{result?.payment?.receiptUrl ? <a href={result.payment.receiptUrl} target="_blank" rel="noreferrer">{t('checkout.receipt')} ↗</a> : null}</div><Link to="/account?tab=orders">{t('nav.orders')} →</Link></> : null}
     {state === 'error' ? <><h1>{t('checkout.tossFailed')}</h1><span>{result?.error}</span><Link to="/checkout">{t('checkout.retry')} →</Link></> : null}
   </section></main>
 }
@@ -61,5 +61,5 @@ export function TossPaymentFail() {
   const message = params.get('message')
   const cancelled = code === 'PAY_PROCESS_CANCELED' || code === 'USER_CANCEL'
 
-  return <main className="payment-result-page"><section><p>TOSS PAYMENTS · TEST</p><h1>{cancelled ? t('checkout.tossCancelled') : t('checkout.tossFailed')}</h1><span>{message || t('checkout.tossFailedHelp')}</span>{code ? <small>{code}</small> : null}<Link to="/checkout">{t('checkout.retry')} →</Link></section></main>
+  return <main className="payment-result-page"><section><p>TOSS PAYMENTS</p><h1>{cancelled ? t('checkout.tossCancelled') : t('checkout.tossFailed')}</h1><span>{message || t('checkout.tossFailedHelp')}</span>{code ? <small>{code}</small> : null}<Link to="/checkout">{t('checkout.retry')} →</Link></section></main>
 }

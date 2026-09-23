@@ -24,7 +24,7 @@ Deno.serve(async request => {
     const anonKey = Deno.env.get('SUPABASE_ANON_KEY')!
     const serviceRoleKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
     const tossSecretKey = Deno.env.get('TOSS_SECRET_KEY')
-    if (!tossSecretKey) return json({ error: 'Toss Payments is not configured' }, 503)
+    if (!tossSecretKey?.startsWith('live_sk_')) return json({ error: 'Live Toss Payments is not configured' }, 503)
 
     const userClient = createClient(supabaseUrl, anonKey, { global: { headers: { Authorization: authorization } } })
     const adminClient = createClient(supabaseUrl, serviceRoleKey)
@@ -76,7 +76,7 @@ Deno.serve(async request => {
         body: JSON.stringify({ cancelReason: '주문 처리 실패로 인한 자동 취소' }),
       })
       console.error('Payment completion failed and cancellation was requested', completeError)
-      return json({ error: 'Order processing failed. The test payment was cancelled.' }, 409)
+      return json({ error: 'Order processing failed. The payment was cancelled automatically.' }, 409)
     }
 
     return json({

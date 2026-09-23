@@ -41,8 +41,8 @@ const loadPostcode = () => {
   return postcodeLoader
 }
 
-// Toss Payments' official public test client key. Override it with the PHILIA test key in Vercel.
-const tossClientKey = import.meta.env.VITE_TOSS_CLIENT_KEY || 'test_ck_D5GePWvyJnrK0W0k6q8gLzN97Eoq'
+const tossClientKey = (import.meta.env.VITE_TOSS_CLIENT_KEY as string | undefined)?.trim()
+const tossLiveConfigured = tossClientKey?.startsWith('live_ck_') ?? false
 const errorMessage = (error: unknown) => error instanceof Error ? error.message : '결제창을 열지 못했습니다. 잠시 후 다시 시도해 주세요.'
 
 export function Checkout() {
@@ -117,6 +117,7 @@ export function Checkout() {
 
   const payWithToss = async () => {
     if (!supabase || !user || !lines.length || !shippingComplete || !agreed) return
+    if (!tossClientKey || !tossLiveConfigured) throw new Error(String(t('checkout.tossNotConfigured')))
     await syncProfile()
     const items = lines.map(line => ({ variant_id: line.variantId, quantity: line.quantity }))
     const { data, error } = await supabase.rpc('create_toss_payment_order', { order_items: items, shipping_info: shippingInfo })
@@ -158,7 +159,7 @@ export function Checkout() {
 
   return <main className="checkout-page">
     <form className="checkout-form" onSubmit={submitCheckout}>
-      <p>PAYMENT · TEST MODE</p><h1>{t('checkout.title')}</h1>
+      <p>PAYMENT · TOSS PAYMENTS</p><h1>{t('checkout.title')}</h1>
       <fieldset className="checkout-section">
         <legend><span>01</span>{t('checkout.customerInfo')}</legend>
         <label>{t('checkout.email')}<input value={user.email ?? ''} readOnly autoComplete="email" /></label>
@@ -178,7 +179,7 @@ export function Checkout() {
       <fieldset className="checkout-section">
         <legend><span>03</span>{t('checkout.method')}</legend>
         <div className="toss-method-card"><div><span>TOSS PAYMENTS</span><small>{t('checkout.card')}</small></div><b>{t('checkout.onlyToss')}</b></div>
-        <section className="toss-checkout-panel"><div className="test-payment-notice"><b>TEST</b><span>{t('checkout.testNotice')}</span></div><label className="checkout-agreement"><input type="checkbox" checked={agreed} onChange={event => setAgreed(event.target.checked)} /><span>{t('checkout.agreement')}</span></label><button type="submit" className="ink-button toss-pay-button" disabled={busy || !agreed || !shippingComplete}>{busy ? t('common.loading') : t('checkout.tossPay', { amount: formatWon(estimatedTotal) })}</button><p>{t('checkout.testHelp')}</p></section>
+        <section className="toss-checkout-panel"><label className="checkout-agreement"><input type="checkbox" checked={agreed} onChange={event => setAgreed(event.target.checked)} /><span>{t('checkout.agreement')}</span></label><button type="submit" className="ink-button toss-pay-button" disabled={busy || !agreed || !shippingComplete || !tossLiveConfigured}>{busy ? t('common.loading') : t('checkout.tossPay', { amount: formatWon(estimatedTotal) })}</button><p>{tossLiveConfigured ? t('checkout.tossHelp') : t('checkout.tossNotConfigured')}</p></section>
       </fieldset>
       <span className="checkout-message" role="status">{message}</span>
     </form>

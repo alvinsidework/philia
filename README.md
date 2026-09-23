@@ -60,22 +60,22 @@ supabase functions deploy notify-bank-order --use-api
 
 봇에게 먼저 `/start` 메시지를 보낸 다음 `https://api.telegram.org/bot<토큰>/getUpdates`에서 `message.chat.id`를 확인합니다. 그룹 알림이라면 봇을 그룹에 추가하고 그룹에서 메시지를 한 번 보낸 뒤 같은 방식으로 확인합니다.
 
-## Toss Payments 테스트 결제
+## Toss Payments 라이브 결제
 
-`/checkout`에서 Toss Payments 테스트 카드 결제를 진행할 수 있습니다. 결제 요청 전 DB의 실제 상품 가격과 재고로 주문을 다시 계산하고, 성공 리다이렉트 후 `confirm-toss-payment` Edge Function이 금액을 검증한 뒤 승인 API를 호출합니다. 승인이 완료되면 주문, 재고, 판매 수량과 재고 이력이 한 트랜잭션으로 반영됩니다.
+`/checkout`에서 Toss Payments 라이브 카드 결제를 진행합니다. 결제 요청 전 DB의 실제 상품 가격과 재고로 주문을 다시 계산하고, 성공 리다이렉트 후 `confirm-toss-payment` Edge Function이 금액을 검증한 뒤 승인 API를 호출합니다. 승인이 완료되면 주문, 재고, 판매 수량과 재고 이력이 한 트랜잭션으로 반영됩니다.
 
-브라우저에 노출해도 되는 테스트 클라이언트 키는 Vercel에, 비밀키는 Supabase Secrets에만 설정합니다.
+브라우저에 노출해도 되는 라이브 클라이언트 키는 Vercel에, 비밀키는 Supabase Secrets에만 설정합니다.
 
 ```bash
 # Vercel 프론트엔드 환경변수
-VITE_TOSS_CLIENT_KEY=test_ck_YOUR_TOSS_TEST_CLIENT_KEY
+VITE_TOSS_CLIENT_KEY=live_ck_YOUR_TOSS_LIVE_CLIENT_KEY
 
 # Supabase 서버 시크릿
-supabase secrets set TOSS_SECRET_KEY="test_sk_YOUR_TOSS_TEST_SECRET_KEY"
+supabase secrets set TOSS_SECRET_KEY="live_sk_YOUR_TOSS_LIVE_SECRET_KEY"
 supabase functions deploy confirm-toss-payment
 ```
 
-클라이언트 키와 비밀키는 반드시 같은 가맹점의 테스트 키 쌍을 사용해야 합니다. `TOSS_SECRET_KEY`를 `.env.local`, `VITE_*`, GitHub에 넣지 않습니다.
+클라이언트 키와 비밀키는 반드시 같은 가맹점의 라이브 키 쌍을 사용해야 합니다. `TOSS_SECRET_KEY`를 `.env.local`, `VITE_*`, GitHub에 넣지 않습니다.
 
 ## 언어
 
